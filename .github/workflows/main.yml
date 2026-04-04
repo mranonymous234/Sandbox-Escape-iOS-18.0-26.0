@@ -1,0 +1,41 @@
+name: Build Research IPA
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
+
+      - name: Build for Sideloading
+        run: |
+          # This builds the app for a real device but skips Apple's signature check
+          xcodebuild build \
+            -project ExploitApp.xcodeproj \
+            -scheme ExploitApp \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
+
+      - name: Package into IPA
+        run: |
+          # The IPA is just a zip folder with a 'Payload' directory
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/*.app Payload/
+          zip -r ExploitApp.ipa Payload
+
+      - name: Upload Finished IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sideload-Ready-IPA
+          path: ExploitApp.ipa
